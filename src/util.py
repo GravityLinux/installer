@@ -10,8 +10,8 @@ else:
 COMPRESSION_LZFSE = 0x801
 CHUNK_SIZE = 0x10000
 
-DISTRO = os.environ.get("DISTRO", "Asahi Linux")
-DISTRO_DOCS = os.environ.get("DISTRO_DOCS", "https://alx.sh/w")
+DISTRO = os.environ.get("DISTRO", "Gravity Linux")
+DISTRO_DOCS = os.environ.get("DISTRO_DOCS", "https://gravitylinux.org/docs")
 
 def ssize(v):
     suffixes = ["B", "KB", "MB", "GB", "TB"]

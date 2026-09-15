@@ -31,14 +31,14 @@ if [ "$res" -ne 0 ] || [ -z "$macos_ver" ]; then
 fi
 
 if [ "${macos_ver%%.*}" -lt 12 ]; then
-    echo "This installer requires macOS 12.3 or later."
+    echo "This installer requires macOS 26.6.2 or later."
     exit 1
 fi
 
 if ! arch -arm64 ls >/dev/null 2>/dev/null; then
     echo
     echo "Looks like this is an Intel Mac!"
-    echo "Sorry, Asahi Linux only supports Apple Silicon machines."
+    echo "Sorry, Gravity Linux only supports the M4 Mac mini."
     echo "May we interest you in https://t2linux.org/ instead?"
     exit 1
 fi

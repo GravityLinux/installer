@@ -2,7 +2,25 @@
 import sys, os, os.path, pprint, statistics, logging
 from .core import FWFile
 
-log = logging.getLogger("asahi_firmware.wifi")
+log = logging.getLogger("gravity_firmware.wifi")
+
+# Linux currently requests generic firmware names on the M4 Mac mini.  Keep
+# these aliases explicit and machine-scoped: using a generic alias for the
+# wrong board can load an incompatible NVRAM or transmit-power configuration.
+MACHINE_ALIASES = {
+    "j773g": {
+        "brcm/brcmfmac4388c0-pcie.bin":
+            "C-4388__s-C2/sakhalin.trx",
+        "brcm/brcmfmac4388c0-pcie.txt":
+            "C-4388__s-C2/P-sakhalin-X0_M-WLMT_V-u__m-4.9.txt",
+        "brcm/brcmfmac4388c0-pcie.clm_blob":
+            "C-4388__s-C2/sakhalin-X0.clmb",
+        "brcm/brcmfmac4388c0-pcie.txcap_blob":
+            "C-4388__s-C2/sakhalin-X0.txcb",
+        "brcm/brcmfmac4388c0-pcie.sig":
+            "C-4388__s-C2/sakhalin.sig",
+    },
+}
 
 class FWNode(object):
     def __init__(self, this=None, leaves=None):
@@ -34,10 +52,15 @@ class WiFiFWCollection(object):
         "sig": "sig",
     }
     DIMS = ["C", "s", "P", "M", "V", "m", "A"]
-    def __init__(self, source_path):
+    def __init__(self, source_path, machine=None):
+        if machine is not None and machine not in MACHINE_ALIASES:
+            raise ValueError(f"Unknown Wi-Fi firmware machine profile: {machine}")
+        self.source_path = source_path
+        self.machine = machine
         self.root = FWNode()
-        self.load(source_path)
-        self.prune()
+        if machine is None:
+            self.load(source_path)
+            self.prune()
 
     def load(self, source_path):
         for dirpath, dirnames, filenames in os.walk(source_path):
@@ -45,9 +68,6 @@ class WiFiFWCollection(object):
                 dirnames.remove("perf")
             if "assert" in dirnames:
                 dirnames.remove("assert")
-            # remove broken firmware dir in 14.6.1 IPSW
-            if "C-4388__s-C2" in dirnames:
-                dirnames.remove("C-4388__s-C2")
             subpath = os.path.relpath(dirpath, source_path)
             for name in sorted(filenames):
                 if not any(name.endswith("." + i) for i in self.EXTMAP):
@@ -117,6 +137,23 @@ class WiFiFWCollection(object):
             yield from self._walk_files(subnode, ident + [k])
 
     def files(self):
+        if self.machine is not None:
+            for name, source in MACHINE_ALIASES[self.machine].items():
+                path = os.path.join(self.source_path, source)
+                try:
+                    with open(path, "rb") as fd:
+                        data = fd.read()
+                except FileNotFoundError:
+                    raise FileNotFoundError(
+                        f"Missing Wi-Fi firmware for {self.machine}: {source}"
+                    ) from None
+
+                if name.endswith(".txt"):
+                    data = self.process_nvram(data)
+
+                yield name, FWFile(source, data)
+            return
+
         for ident, fwfile in self._walk_files(self.root, []):
             (ext, chip, rev), rest = ident[:3], ident[3:]
             rev = rev.lower()

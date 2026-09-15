@@ -15,9 +15,9 @@ LIBFFI_BASE_URI="https://ghcr.io/v2/homebrew/core/libffi/blobs"
 LIBFFI_TARGET_OS="macOS 26"
 LIBFFI_PKG="libffi-$LIBFFI_VER-macos.tar.gz"
 
-M1N1="$PWD/m1n1"
+M1N1="$PWD/bootloader"
 ARTWORK="$PWD/artwork"
-AFW="$PWD/asahi_firmware"
+FIRMWARE_TOOLS="$PWD/gravity_firmware"
 SRC="$PWD/src"
 DL="$PWD/dl"
 PACKAGE="$PWD/package"
@@ -84,10 +84,11 @@ fi
 if [ -r "$M1N1_STAGE1" ]; then
     echo "Using '$M1N1_STAGE1' as m1n1 stage1"
 elif [ ! -r "$M1N1/Makefile" ]; then
-    echo "m1n1 missing, did you forget to update the submodules?"
+    echo "bootloader missing, did you forget to update the submodules?"
     exit 1
 else
     echo "Building m1n1..."
+    BUILT_STAGE1=1
 
     # Do it twice in case of build system shenanigans with versions
     make -C "$M1N1" RELEASE=1 CHAINLOADING=1 -j4
@@ -99,18 +100,21 @@ fi
 echo "Copying files..."
 
 cp -r "$SRC"/* "$PACKAGE/"
-rm "$PACKAGE/asahi_firmware"
-cp -r "$AFW" "$PACKAGE/"
+rm -f "$PACKAGE/gravity_firmware"
+cp -r "$FIRMWARE_TOOLS" "$PACKAGE/"
 if [ -r "$LOGO" ]; then
     cp "$LOGO" "$PACKAGE/logo.icns"
-elif [ ! -r "$ARTWORK/logos/icns/AsahiLinux_logomark.icns" ]; then
-    echo "artwork missing, did you forget to update the submodules?"
-    exit 1
 else
-    cp "$ARTWORK/logos/icns/AsahiLinux_logomark.icns" "$PACKAGE/logo.icns"
+    cp "$ARTWORK/logos/icns/GravityLinux_logomark.icns" "$PACKAGE/logo.icns"
 fi
 mkdir -p "$PACKAGE/boot"
 cp "$M1N1_STAGE1" "$PACKAGE/boot/m1n1.bin"
+
+# Match m1n1's custom-logo payload format without modifying its source tree.
+# A supplied M1N1_STAGE1 (for example from the RPM) is already branded.
+if [ "${BUILT_STAGE1:-0}" = 1 ]; then
+    sh "$SRC/../tools/append-boot-logo.sh" "$PACKAGE/boot/m1n1.bin" "$ARTWORK"
+fi
 
 echo "Extracting libffi..."
 

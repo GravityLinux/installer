@@ -7,7 +7,7 @@ echo "IT WILL INDISCRIMINATELY WIPE A BUNCH OF PARTITIONS"
 echo "THAT MAY OR MAY NOT BE THE ONES YOU WANT TO WIPE."
 echo
 echo "You are much better off reading and understanding this guide:"
-echo "https://github.com/AsahiLinux/docs/wiki/Partitioning-cheatsheet"
+echo "https://gravitylinux.org/docs/partitioning"
 echo
 echo "Press enter twice if you really want to continue."
 echo "Press Control-C to exit."
@@ -18,7 +18,7 @@ read
 diskutil list | grep Apple_APFS | grep '\b2\.5 GB' | sed 's/.* //g' | while read i; do
     diskutil apfs deleteContainer "$i"
 done
-diskutil list /dev/disk0 | grep -Ei 'asahi|linux|EFI' | sed 's/.* //g' | while read i; do
+diskutil list /dev/disk0 | grep -Ei 'gravity|linux|EFI' | sed 's/.* //g' | while read i; do
     diskutil eraseVolume free free "$i"
 done
 

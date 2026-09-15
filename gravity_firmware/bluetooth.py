@@ -4,7 +4,7 @@ from collections import namedtuple, defaultdict
 
 from .core import FWFile
 
-log = logging.getLogger("asahi_firmware.bluetooth")
+log = logging.getLogger("gravity_firmware.bluetooth")
 
 BluetoothChip = namedtuple(
     "BluetoothChip", ("chip", "stepping", "board_type", "vendor")
@@ -15,6 +15,13 @@ INCOMPLETE_CHIPS = set([
     ('4388', 'b0', 'apple,tokara'),
     ('4388', 'b0', 'apple,amami'),
 ])
+
+MACHINE_OUTPUTS = {
+    "j773g": (
+        "brcm/brcmbt4388c2-apple,sakhalin-a.bin",
+        "brcm/brcmbt4388c2-apple,sakhalin-a.ptb",
+    ),
+}
 
 class BluetoothFWCollection(object):
     VENDORMAP = {
@@ -27,7 +34,10 @@ class BluetoothFWCollection(object):
         "ES2"
     ]
 
-    def __init__(self, source_path):
+    def __init__(self, source_path, machine=None):
+        if machine is not None and machine not in MACHINE_OUTPUTS:
+            raise ValueError(f"Unknown Bluetooth firmware machine profile: {machine}")
+        self.machine = machine
         self.fwfiles = defaultdict(lambda: [None, None])
         self.load(source_path)
 
@@ -64,6 +74,10 @@ class BluetoothFWCollection(object):
 
     def parse_fname(self, fname):
         fname = fname.split("_")
+
+        # Universal recovery images also contain non-Broadcom firmware.
+        if not fname[0].lower().startswith("bcm"):
+            return None
 
         match = re.fullmatch("bcm(43[0-9]{2})([a-z][0-9])", fname[0].lower())
         if not match:
@@ -107,6 +121,7 @@ class BluetoothFWCollection(object):
         )
 
     def files(self):
+        files = {}
         for chip, (bin, ptb) in self.fwfiles.items():
             fname_base = f"brcm/brcmbt{chip.chip}{chip.stepping}-{chip.board_type}"
             if chip.vendor is not None:
@@ -114,16 +129,27 @@ class BluetoothFWCollection(object):
 
             if bin is None:
                 log.warning(f"no bin for {chip}")
-                continue
             else:
-                yield fname_base + ".bin", bin
+                files[fname_base + ".bin"] = bin
 
             if ptb is None:
                 if (chip.chip, chip.stepping, chip.board_type) not in INCOMPLETE_CHIPS:
                     log.warning(f"no ptb for {chip}")
                 continue
             else:
-                yield fname_base + ".ptb", ptb
+                files[fname_base + ".ptb"] = ptb
+
+        if self.machine is None:
+            yield from files.items()
+            return
+
+        for name in MACHINE_OUTPUTS[self.machine]:
+            try:
+                yield name, files[name]
+            except KeyError:
+                raise FileNotFoundError(
+                    f"Missing Bluetooth firmware for {self.machine}: {name}"
+                ) from None
 
 
 if __name__ == "__main__":

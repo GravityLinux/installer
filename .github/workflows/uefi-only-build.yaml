@@ -30,7 +30,7 @@ jobs:
       - name: Checkout linux
         uses: actions/checkout@v7
         with:
-          repository: AsahiLinux/linux
+          repository: GravityLinux/linux
           ref: ${{ vars.UEFI_LINUX_TAG }}
           path: linux
           sparse-checkout: 'arch/arm64/boot/dts/apple/'
@@ -38,7 +38,7 @@ jobs:
       - name: Checkout u-boot
         uses: actions/checkout@v7
         with:
-          repository: AsahiLinux/u-boot
+          repository: GravityLinux/u-boot
           ref: ${{ vars.UEFI_UBOOT_TAG }}
           path: u-boot
 
@@ -48,7 +48,7 @@ jobs:
           sudo apt-get install --no-install-recommends -y \
                                gcc-aarch64-linux-gnu \
                                libgnutls28-dev \
-                               device-tree-compiler
+                               device-tree-compiler imagemagick
 
       - name: Install aarch64-unknown-none-softfloat rust target
         run: |
@@ -56,8 +56,9 @@ jobs:
 
       - name: Build
         run: |
-          cd m1n1
+          cd bootloader
           make -k -j2 ARCH=aarch64-linux-gnu- RELEASE=1
+          sh ../tools/append-boot-logo.sh build/m1n1.bin ../artwork
 
       - name: Update u-boot apple device trees
         run: |
@@ -76,7 +77,7 @@ jobs:
         run: |
           mkdir -p out/esp/m1n1/
           gzip -k u-boot/u-boot-nodtb.bin
-          cat m1n1/build/m1n1.bin \
+          cat bootloader/build/m1n1.bin \
               u-boot/dts/upstream/src/arm64/apple/t60*.dtb \
               u-boot/dts/upstream/src/arm64/apple/t81*.dtb \
               u-boot/u-boot-nodtb.bin.gz \

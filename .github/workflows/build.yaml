@@ -7,7 +7,7 @@ on:
   workflow_call:
     outputs:
       installer_ver:
-        description: asahi-installer built version string
+        description: Gravity Linux installer built version string
         value: ${{ jobs.build.outputs.installer_ver }}
 
 jobs:
@@ -26,11 +26,11 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y gcc-aarch64-linux-gnu
-          sudo apt-get install --no-install-recommends -y libarchive-tools 7zip jq
+          sudo apt-get install --no-install-recommends -y gcc-aarch64-linux-gnu clang lld llvm
+          sudo apt-get install --no-install-recommends -y libarchive-tools 7zip jq imagemagick
           rustup target install aarch64-unknown-none-softfloat
 
-      - name: Build asahi-installer
+      - name: Build Gravity Linux installer
         id: compile
         run: |
           ./build.sh

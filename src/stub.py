@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: MIT
 import os, os.path, plistlib, shutil, sys, stat, subprocess, urlcache, zipfile, logging, json, tempfile
 import osenum
-from asahi_firmware.wifi import WiFiFWCollection
-from asahi_firmware.bluetooth import BluetoothFWCollection
-from asahi_firmware.multitouch import MultitouchFWCollection
-from asahi_firmware.kernel import KernelFWCollection
-from asahi_firmware.isp import ISPFWCollection
-from asahi_firmware.als import AlsFWCollection, FACTORY_DIR
+from gravity_firmware.wifi import WiFiFWCollection
+from gravity_firmware.bluetooth import BluetoothFWCollection
+from gravity_firmware.multitouch import MultitouchFWCollection
+from gravity_firmware.kernel import KernelFWCollection
+from gravity_firmware.isp import ISPFWCollection
+from gravity_firmware.als import AlsFWCollection, FACTORY_DIR
+from gravity_firmware.open_firmware import OpenFirmwareCollection
 from util import *
 
 class StubInstaller(PackageInstaller):
@@ -203,12 +204,12 @@ class StubInstaller(PackageInstaller):
             else:
                 logging.info("EFI partition found")
                 mountpoint = self.dutil.mount(efi_part.name)
-                asahi = os.path.join(mountpoint, "asahi")
-                if os.path.exists(asahi):
-                    self.collect_installer_data(asahi, merge_stub_info=True)
+                gravity = os.path.join(mountpoint, "gravity")
+                if os.path.exists(gravity):
+                    self.collect_installer_data(gravity, merge_stub_info=True)
                     logging.info("Admin users updated in ESP")
                 else:
-                    logging.info("'asahi' dir not found in ESP")
+                    logging.info("'gravity' dir not found in ESP")
 
     def load_identity(self):
         self.get_paths()
@@ -403,6 +404,10 @@ class StubInstaller(PackageInstaller):
         p_progress("Collecting firmware...")
         logging.info("StubInstaller.collect_firmware()")
 
+        machine = self.identity["Info"]["DeviceClass"]
+        if machine.endswith("ap"):
+            machine = machine[:-2]
+
         logging.info("Collecting FUD firmware")
         if os.path.exists("fud_firmware"):
             shutil.rmtree("fud_firmware")
@@ -448,40 +453,74 @@ class StubInstaller(PackageInstaller):
         logging.info("Attaching recovery ramdisk")
         subprocess.run(["hdiutil", "attach", "-quiet", "-readonly", "-mountpoint", "recovery", img],
                        check=True)
-        logging.info("Collecting WiFi firmware")
-        col = WiFiFWCollection("recovery/usr/share/firmware/wifi/")
-        pkg.add_files(sorted(col.files()))
-        logging.info("Collecting Bluetooth firmware")
-        col = BluetoothFWCollection("recovery/usr/share/firmware/bluetooth/")
-        pkg.add_files(sorted(col.files()))
-        logging.info("Collecting Multitouch firmware")
-        col = MultitouchFWCollection("fud_firmware/")
-        pkg.add_files(sorted(col.files()))
-        logging.info("Collecting ISP firmware")
-        col = ISPFWCollection("recovery/usr/sbin/")
-        pkg.add_files(sorted(col.files()))
-        logging.info("Collecting Kernel firmware")
-        col = KernelFWCollection(kernel_path)
-        pkg.add_files(sorted(col.files()))
-        logging.info("Collecting ALS firmware")
-        col = AlsFWCollection()
-        als_files = sorted(col.files())
-        pkg.add_files(als_files)
-        logging.info("Making fallback firmware archive")
-        with tempfile.TemporaryDirectory() as tmpdir:
-            os.makedirs(f"{tmpdir}/apple")
-            for name, fwf in als_files:
-                open(f"{tmpdir}/{name}", "wb").write(fwf.data)
-            subprocess.run(["tar", "czf", "all_firmware.tar.gz",
+        try:
+            wifi_sources = (
+                "recovery/System/Library/DriverExtensions/"
+                "com.apple.DriverKit-AppleBCMWLAN.dext/Firmware",
+                "recovery/usr/share/firmware/wifi",
+            )
+            wifi_source = next(
+                (path for path in wifi_sources if os.path.isdir(path)), None
+            )
+            if wifi_source is None:
+                raise FileNotFoundError("Could not find recovery Wi-Fi firmware")
+
+            logging.info(f"Collecting WiFi firmware from {wifi_source}")
+            col = WiFiFWCollection(wifi_source, machine=machine)
+            pkg.add_files(sorted(col.files()))
+            logging.info("Collecting Bluetooth firmware")
+            col = BluetoothFWCollection(
+                "recovery/usr/share/firmware/bluetooth/", machine=machine
+            )
+            pkg.add_files(sorted(col.files()))
+            logging.info("Collecting Multitouch firmware")
+            col = MultitouchFWCollection("fud_firmware/")
+            pkg.add_files(sorted(col.files()))
+            if machine != "j773g":
+                logging.info("Collecting ISP firmware")
+                col = ISPFWCollection("recovery/usr/sbin/")
+                pkg.add_files(sorted(col.files()))
+            logging.info("Collecting Kernel firmware")
+            col = KernelFWCollection(kernel_path)
+            pkg.add_files(sorted(col.files()))
+            als_files = []
+            if machine != "j773g":
+                logging.info("Collecting ALS firmware")
+                col = AlsFWCollection()
+                als_files = sorted(col.files())
+                pkg.add_files(als_files)
+            logging.info("Collecting bundled open firmware")
+            col = OpenFirmwareCollection(machine=machine)
+            pkg.add_files(sorted(col.files()))
+            logging.info("Making fallback firmware archive")
+            with tempfile.TemporaryDirectory() as tmpdir:
+                os.makedirs(f"{tmpdir}/apple")
+                for name, fwf in als_files:
+                    open(f"{tmpdir}/{name}", "wb").write(fwf.data)
+                # Newer recovery images keep the complete Wi-Fi set inside
+                # the DriverExtension.  Preserve it under a stable raw name
+                # for gravity-fwextract on the installed Linux system.
+                shutil.copytree(
+                    wifi_source,
+                    os.path.join(tmpdir, "apple_bcmwlan_firmware"),
+                )
+                tar_args = ["tar", "czf", "all_firmware.tar.gz",
                             "fud_firmware",
-                            "-C", "recovery/usr/share", "firmware",
-                            "-C", "../../usr/sbin", "appleh13camerad",
-                            "-C", os.path.dirname(FACTORY_DIR), os.path.basename(FACTORY_DIR),
-                            "-C", tmpdir, "apple",
-                            ], check=True)
-        self.copy_idata.append(("all_firmware.tar.gz", "all_firmware.tar.gz"))
-        logging.info("Detaching recovery ramdisk")
-        subprocess.run(["hdiutil", "detach", "-quiet", "recovery"])
+                            "-C", "recovery/usr/share", "firmware"]
+                if machine != "j773g":
+                    tar_args.extend([
+                        "-C", "../../usr/sbin", "appleh13camerad",
+                        "-C", os.path.dirname(FACTORY_DIR),
+                        os.path.basename(FACTORY_DIR),
+                    ])
+                tar_args.extend([
+                    "-C", tmpdir, "apple", "apple_bcmwlan_firmware",
+                ])
+                subprocess.run(tar_args, check=True)
+            self.copy_idata.append(("all_firmware.tar.gz", "all_firmware.tar.gz"))
+        finally:
+            logging.info("Detaching recovery ramdisk")
+            subprocess.run(["hdiutil", "detach", "-quiet", "recovery"], check=True)
 
     def collect_installer_data(self, path, merge_stub_info=False):
         p_progress("Collecting installer data...")

@@ -4,10 +4,10 @@ from util import *
 
 EXPLANATIONS = {
     "device_class":
-        "# The model code of your device. For example, j274ap means\n"
-        "# 'Mac mini (M1, 2020)'.",
+        "# The model code of your device. For example, j773gap means\n"
+        "# 'Mac mini (M4, 2024)'.",
     "chip_id":
-        "# The kind of chip your device has. For example, 0x8103 means Apple M1.\n"
+        "# The kind of chip your device has. For example, 0x8132 means Apple M4.\n"
         "# This is redundant (it is the same for any given device_class), but it\n"
         "# makes grouping reports by chips instead of devices a bit easier.",
     "macos_ver":
@@ -35,7 +35,7 @@ EXPLANATIONS = {
         "# painful having to keep a macOS install around is for our users.",
     "disk_fraction":
         "# The fraction of your disk you allocated to your install, rounded to\n"
-        "# 5%. This helps us understand how many people are using Asahi as\n"
+        "# 5%. This helps us understand how many people are using Gravity as\n"
         "# their primary OS, secondary OS, or just trying it out.",
     "installer":
         "# Version and configuration information for the installer. This lets us\n"
@@ -87,8 +87,8 @@ def report_inner(m, url, tag):
 
     print()
     print()
-    p_question("Help us improve Asahi Linux!")
-    p_message("We'd love to know how many people are installing Asahi and on what")
+    p_question("Help us improve Gravity Linux!")
+    p_message("We'd love to know how many people are installing Gravity and on what")
     p_message("kind of hardware. Would you mind sending a one-time installation")
     p_message("report to us?")
     print()

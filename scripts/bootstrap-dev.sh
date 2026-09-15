@@ -7,7 +7,7 @@ if true; then
 
     if [ ! -e /System ]; then
         echo "You appear to be running this script from Linux or another non-macOS system."
-        echo "Asahi Linux can only be installed from macOS (or recoveryOS)."
+        echo "Gravity Linux can only be installed from macOS (or recoveryOS)."
         exit 1
     fi
 
@@ -17,21 +17,21 @@ if true; then
 
     if ! curl --no-progress-meter file:/// >/dev/null 2>&1; then
         echo "Your version of cURL is too old. This usually means your macOS is very out"
-        echo "of date. Installing Asahi Linux requires at least macOS version 13.5."
+        echo "of date. Installing Gravity Linux requires at least macOS version 26.6.2."
         exit 1
     fi
 
-    export VERSION_FLAG=https://cdn.asahilinux.org/installer-dev/latest
-    export INSTALLER_BASE=https://cdn.asahilinux.org/installer-dev
-    export INSTALLER_DATA=https://github.com/AsahiLinux/asahi-installer-data/raw/main/data/installer_data.json
-    export REPO_BASE=https://cdn.asahilinux.org
-    export REPORT=https://stats.asahilinux.org/report
-    export REPORT_TAG=alx-dev
+    export DISTRO="Gravity Linux"
+    export DISTRO_DOCS=https://gravitylinux.org/docs
+    export VERSION_FLAG=https://cdn.gravitylinux.org/installer-dev/latest
+    export INSTALLER_BASE=https://cdn.gravitylinux.org/installer-dev
+    export INSTALLER_DATA=https://cdn.gravitylinux.org/installer-dev/installer_data.json
+    export REPO_BASE=https://cdn.gravitylinux.org
 
     export EXPERT=1
 
     #TMP="$(mktemp -d)"
-    TMP=/tmp/asahi-install
+    TMP=/tmp/gravity-install
 
     echo
     echo "Bootstrapping installer:"

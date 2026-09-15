@@ -114,7 +114,7 @@ class OSInstaller(PackageInstaller):
         logging.info("OSInstaller.download_extras()")
 
         mountpoint = self.dutil.mount(self.efi_part.name)
-        dest = os.path.join(mountpoint, "asahi", "extras")
+        dest = os.path.join(mountpoint, "gravity", "extras")
         os.makedirs(dest, exist_ok=True)
 
         count = len(self.template["extras"])
@@ -168,7 +168,7 @@ class OSInstaller(PackageInstaller):
                 shutil.copytree(self.firmware_package.path, base)
             if part.get("copy_installer_data", False):
                 mountpoint = self.dutil.mount(info.name)
-                data_path = os.path.join(mountpoint, "asahi")
+                data_path = os.path.join(mountpoint, "gravity")
                 os.makedirs(data_path, exist_ok=True)
                 self.idata_targets.append(data_path)
 
@@ -186,7 +186,7 @@ class OSInstaller(PackageInstaller):
 
         m1n1_vars = []
         if self.efi_part:
-            m1n1_vars.append(f"chosen.asahi,efi-system-partition={self.efi_part.uuid.lower()}")
+            m1n1_vars.append(f"chosen.gravity,efi-system-partition={self.efi_part.uuid.lower()}")
         if next_object is not None:
             assert self.efi_part is not None
             m1n1_vars.append(f"chainload={self.efi_part.uuid.lower()};{next_object}")

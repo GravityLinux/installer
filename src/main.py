@@ -3,7 +3,7 @@
 import os, os.path, shlex, subprocess, sys, time, termios, json, getpass, reporting
 from dataclasses import dataclass
 
-import system, osenum, stub, diskutil, osinstall, asahi_firmware, m1n1, bugs
+import system, osenum, stub, diskutil, osinstall, gravity_firmware, m1n1
 from util import *
 
 PART_ALIGN = psize("1MiB")
@@ -18,8 +18,7 @@ MIN_FREE = psize("1GB")
 # 2.5GB stub + 5GB OS + 0.5GB EFI = 8GB, round up to 10GB
 MIN_INSTALL_FREE = psize("10GB")
 
-MIN_MACOS_VERSION = "13.5"
-MIN_MACOS_VERSION_EXPERT = "12.3"
+MIN_MACOS_VERSION = "26.6.2"
 
 @dataclass
 class IPSW:
@@ -36,93 +35,13 @@ class Device:
     min_ver: str
     expert_only: bool
 
-CHIP_MIN_VER = {
-    0x8103: "11.0",     # T8103, M1
-    0x6000: "12.0",     # T6000, M1 Pro
-    0x6001: "12.0",     # T6001, M1 Max
-    0x6002: "12.3",     # T6002, M1 Ultra
-    0x8112: "12.4",     # T8112, M2
-    0x6020: "13.1",     # T6020, M2 Pro
-    0x6021: "13.1",     # T6021, M2 Max
-    0x6022: "13.4",     # T6022, M2 Ultra
-    0x8122: "14.8.3",   # T8122, M3
-    0x6030: "14.8.3",   # T6030, M3 Pro
-    0x6031: "14.8.3",   # T6031, M3 Max (16-core)
-    0x6034: "14.8.3",   # T6034, M3 Max (14-core)
-}
-
-DEVICES = {
-    "j274ap":   Device("11.0", False),  # Mac mini (M1, 2020)
-    "j293ap":   Device("11.0", False),  # MacBook Pro (13-inch, M1, 2020)
-    "j313ap":   Device("11.0", False),  # MacBook Air (M1, 2020)
-    "j456ap":   Device("11.3", False),  # iMac (24-inch, M1, 2021)
-    "j457ap":   Device("11.3", False),  # iMac (24-inch, M1, 2021)
-    "j314cap":  Device("12.0", False),  # MacBook Pro (14-inch, M1 Max, 2021)
-    "j314sap":  Device("12.0", False),  # MacBook Pro (14-inch, M1 Pro, 2021)
-    "j316cap":  Device("12.0", False),  # MacBook Pro (16-inch, M1 Max, 2021)
-    "j316sap":  Device("12.0", False),  # MacBook Pro (16-inch, M1 Pro, 2021)
-    "j375cap":  Device("12.3", False),  # Mac Studio (M1 Max, 2022)
-    "j375dap":  Device("12.3", False),  # Mac Studio (M1 Ultra, 2022)
-    "j413ap":   Device("12.4", False),  # MacBook Air (M2, 2022)
-    "j493ap":   Device("12.4", False),  # MacBook Pro (13-inch, M2, 2022)
-    "j414cap":  Device("13.2", False),  # MacBook Pro (14-inch, M2 Max, 2023)
-    "j414sap":  Device("13.2", False),  # MacBook Pro (14-inch, M2 Pro, 2023)
-    "j416cap":  Device("13.2", False),  # MacBook Pro (16-inch, M2 Max, 2023)
-    "j416sap":  Device("13.2", False),  # MacBook Pro (16-inch, M2 Pro, 2023)
-    "j473ap":   Device("13.2", False),  # Mac mini (M2, 2023)
-    "j474sap":  Device("13.2", False),  # Mac mini (M2 Pro, 2023)
-    "j415ap":   Device("13.4", False),  # MacBook Air (15-inch, M2, 2023)
-    "j475cap":  Device("13.4", False),  # Mac Studio (M2 Max, 2023)
-    "j475dap":  Device("13.4", False),  # Mac Studio (M2 Ultra, 2023)
-    "j180dap":  Device("13.4", False),  # Mac Pro (M2 Ultra, 2023)
-    "j433ap":   Device("14.8.3", True), # iMac (24-inch, M3, 2023)
-    "j434ap":   Device("14.8.3", True), # iMac (24-inch, M3, 2023)
-    "j504ap":   Device("14.8.3", True), # MacBook Pro (14-inch, M3, 2023)
-    "j613ap":   Device("14.8.3", True), # MacBook Air (13-inch, M3, 2024)
-    "j615ap":   Device("14.8.3", True), # MacBook Air (15-inch, M3, 2024)
-    "j514sap":  Device("14.8.3", True), # MacBook Pro (14-inch, M3 Pro, 2023)
-    "j514cap":  Device("14.8.3", True), # MacBook Pro (14-inch, M3 Max, 2023)
-    "j514map":  Device("14.8.3", True), # MacBook Pro (14-inch, M3 Max, 2023)
-    "j516sap":  Device("14.8.3", True), # MacBook Pro (16-inch, M3 Pro, 2023)
-    "j516cap":  Device("14.8.3", True), # MacBook Pro (16-inch, M3 Max, 2023)
-    "j516map":  Device("14.8.3", True), # MacBook Pro (16-inch, M3 Max, 2023)
-}
-
-# Asahi Linux does not support running in a virtual machine, this option
-# exists only for development of the installer itself.
-if os.environ.get("ALLOW_VM", None):
-    CHIP_MIN_VER[0xfe00] = "12.0"
-    DEVICES["vma2macosap"] = Device("12.0", False)
+CHIP_MIN_VER = {0x8132: "26.6.2"}  # T8132, M4
+DEVICES = {"j773gap": Device("26.6.2", False)}  # Mac mini (M4, 2024)
 
 IPSW_VERSIONS = [
-    IPSW("12.3.1",
-         "12.1",
-         "iBoot-7459.101.3",
-         "21.5.258.0.0,0",
-         False,
-         None,
-         "https://updates.cdn-apple.com/2022SpringFCS/fullrestores/002-79219/851BEDF0-19DB-4040-B765-0F4089D1530D/UniversalMac_12.3.1_21E258_Restore.ipsw"),
-    IPSW("12.3",
-         "12.1",
-         "iBoot-7459.101.2",
-         "21.5.230.0.0,0",
-         False,
-         None,
-         "https://updates.cdn-apple.com/2022SpringFCS/fullrestores/071-08757/74A4F2A1-C747-43F9-A22A-C0AD5FB4ECB6/UniversalMac_12.3_21E230_Restore.ipsw"),
-    IPSW("13.5",
-         "13.0",
-         "iBoot-8422.141.2",
-         "22.7.74.0.0,0",
-         False,
-         None,
-         "https://updates.cdn-apple.com/2023SummerFCS/fullrestores/032-69606/D3E05CDF-E105-434C-A4A1-4E3DC7668DD0/UniversalMac_13.5_22G74_Restore.ipsw"),
-    IPSW("14.8.3",
-         "14.6",
-         "iBoot-10151.140.19",
-         "23.10.220.0.0,0",
-         True,
-         ["j433ap", "j434ap", "j504ap", "j613ap", "j615ap", "j514sap", "j514cap", "j514map", "j516sap", "j516cap", "j516map"],
-         "https://updates.cdn-apple.com/2025FallFCS/patches/089-71124/49AD260A-D47F-4B5E-A793-30446187196E/com_apple_MobileAsset_MacSoftwareUpdate/f6d1ac9149f6a06401ff87fae5b262c420bfc5f7.zip"),
+    # Keep this entry current with an Apple-signed restore image for Mac16,10.
+    IPSW("26.6.2", "26.6.2", "0", "0", False, ["j773gap"],
+         "https://updates.cdn-apple.com/2026SummerFCS/fullrestores/140-75212/A2A24B94-1FC1-45A3-93F7-C51B02AF1F4D/UniversalMac_26.6.2_25G83_Restore.ipsw"),
 ]
 
 class InstallerMain:
@@ -516,7 +435,7 @@ class InstallerMain:
         esp_id = None
         for var in vars:
             k, v = var.split('=')
-            if k == "chosen.asahi,efi-system-partition":
+            if k == "chosen.gravity,efi-system-partition":
                 esp_id = v
                 break
         if esp_id is None:
@@ -528,7 +447,7 @@ class InstallerMain:
         mountpoint = self.dutil.mount(target.name)
 
         os.makedirs("vendorfw", exist_ok=True)
-        fw_pkg = asahi_firmware.core.FWPackage("vendorfw")
+        fw_pkg = gravity_firmware.core.FWPackage("vendorfw")
         ipsw = None
         for ver in IPSW_VERSIONS:
             if ver.version == osi.version:
@@ -548,9 +467,9 @@ class InstallerMain:
         base = os.path.join(mountpoint, "vendorfw")
         logging.info(f"Firmware -> {base}")
         shutil.copytree(fw_pkg.path, base, dirs_exist_ok=True)
-        asahi = os.path.join(mountpoint, "asahi")
+        gravity = os.path.join(mountpoint, "gravity")
         all_fw = "all_firmware.tar.gz"
-        shutil.copy(all_fw, os.path.join(asahi, all_fw))
+        shutil.copy(all_fw, os.path.join(gravity, all_fw))
 
         print()
         p_success(f"Firmware rebuild complete. Press enter to continue.")
@@ -571,7 +490,7 @@ class InstallerMain:
         pkg = None
         if self.osins.needs_firmware:
             os.makedirs("vendorfw", exist_ok=True)
-            pkg = asahi_firmware.core.FWPackage("vendorfw")
+            pkg = gravity_firmware.core.FWPackage("vendorfw")
             self.ins.collect_firmware(pkg)
             pkg.close()
             self.osins.firmware_package = pkg
@@ -850,7 +769,7 @@ class InstallerMain:
             p_message("  any pending macOS upgrades and visit this link to learn how to manually")
             p_message("  delete Time Machine snapshots:")
             print()
-            p_plain( f"    {col(BLUE, BRIGHT)}https://alx.sh/tmcleanup{col()}")
+            p_plain( f"    {col(BLUE, BRIGHT)}https://gravitylinux.org/docs/timemachine{col()}")
             print()
 
             if avail < 2 * PART_ALIGN:
@@ -955,7 +874,7 @@ class InstallerMain:
         self.expert = False
         if os.environ.get("EXPERT", None):
             p_message("By default, this installer will hide certain advanced options that")
-            p_message("are only useful for Asahi Linux developers. You can enable expert mode")
+            p_message("are only useful for Gravity Linux developers. You can enable expert mode")
             p_message("to show them. Do not enable this unless you know what you are doing.")
             p_message("Please do not file bugs if things go wrong in expert mode.")
             self.expert = self.yesno("Enable expert mode?")
@@ -966,15 +885,13 @@ class InstallerMain:
         self.sysinfo.show()
         print()
 
-        bugs.run_checks(self)
-
         self.chip_min_ver = CHIP_MIN_VER.get(self.sysinfo.chip_id, None)
         self.device = DEVICES.get(self.sysinfo.device_class, None)
         if not self.chip_min_ver or not self.device or (self.device.expert_only and not self.expert):
             p_error("This device is not supported yet!")
-            p_error("Please check out the Asahi Linux Blog for updates on device support:")
+            p_error("Gravity Linux supports only the M4 Mac mini (j773gap).")
             print()
-            p_error("   https://asahilinux.org/blog/")
+            p_error("   https://gravitylinux.org/docs/hardware")
             print()
             sys.exit(1)
 

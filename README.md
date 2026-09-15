@@ -1,54 +1,72 @@
-# Asahi Linux installer
-The Asahi Linux installer provides a way to install [Asahi Linux](https://asahilinux.org)
-on Apple Silicon Macs. These systems have a bespoke [boot process](https://asahilinux.org/docs/platform/introduction/)
-that requires special considerations to support [alternative operating systems](https://asahilinux.org/docs/platform/open-os-interop/).
-The Asahi Installer takes care of preparing the system for the installation,
-downloading an image of the distribution to install and laying it on disk.
+# Gravity Linux installer
 
-This repository provides the installer itself, supporting scripts, and the
-`asahi_firmware` Python module (which is also used by [asahi-scripts](https://github.com/AsahiLinux/asahi-scripts)).
+The Gravity Linux installer installs Gravity Linux on exactly one Apple Silicon
+model: the M4 Mac mini (`t8132`, `j773gap`). It prepares the Apple boot chain,
+installs the selected Gravity Linux image, and collects the device firmware
+needed by that installation.
 
-## Building
-Run `./build.sh`, which will produce an installer tree under `releases/`. By
-default this will build m1n1 with chainloading support. You can optionally set
-`M1N1_STAGE1` to a prebuilt m1n1 stage 1 binary, and `LOGO` to a logo in icns format.
-These are mostly useful for downstream distributions that would like to customize
-or brand the installer. By default, the build will fetch required dependencies from
-the Internet and cache them under `dl/`. If this isn't desired, place the required
-files there before running the build.
+## User installation link
 
-The reference installer at https://alx.sh is deployed from the latest tag of this
-repo by `.github/workflows/release-prod.yaml`. The dev installer at https://alx.sh/dev
-is deployed from the latest push to `main` by `.github/workflows/release-dev.yaml`.
+Publish the production bootstrap script at
+`https://install.gravitylinux.org`, then direct users to run:
 
-## Bootstrapping and branding
-The installer is meant to be executed via a bootstrap script. We provide reference
-implementations for [local development](scripts/bootstrap.sh) and for alx.sh
-([prod](scripts/bootstrap-prod.sh), [dev](scripts/bootstrap-dev.sh)). Following
-our [distribution guidelines](https://asahilinux.org/docs/alt/policy/), downstream
-distributions are encouraged to host their own modified copy of these, alongside
-their downstream build of the installer and their installation images. Downstreams
-will also want to customize the variable definitions at the beginning of the script,
-as those will be consumed by the installer and used for its branding. These include:
+```sh
+curl -fsSL https://install.gravitylinux.org | sh
+```
 
-* `VERSION_FLAG`: a URI pointing to the `latest` file within the installer tree
-* `INSTALLER_BASE`: a URL pointing to your installer tree
-* `INSTALLER_DATA`: a URI pointing to your installer medatata file (see
-  [asahi-installer-data](https://github.com/AsahiLinux/asahi-installer-data) for
-  the one we're using for alx.sh)
-* `INSTALLER_DATA_ALT`: optionally, a URI pointing to an alternative location for
-  your installer metadata file; this can be useful in locations where the
-  primary location might be blocked by local network policies
-* `REPO_BASE`: a URI pointing to your OS images root (meaning, the parent folder
-  of the relative paths referenced inside the metadata file)
-* `REPORT`: a URI pointing to the stats server for installation metrics collection
-* `REPORT_TAG`: a string used to identify your distribution for metrics collection
+That script is the stable public entry point. It obtains the current installer
+version and metadata from the CDN, so the command itself does not need to change
+on each release.
+
+## CDN release layout
+
+The production bootstrap expects these objects:
+
+```
+https://install.gravitylinux.org
+https://cdn.gravitylinux.org/installer/latest
+https://cdn.gravitylinux.org/installer/installer-<version>.tar.gz
+https://cdn.gravitylinux.org/installer/installer_data.json
+https://cdn.gravitylinux.org/os/<paths referenced by installer_data.json>
+```
+
+`installer-<version>.tar.gz` contains the packaged Python installer and m1n1
+stage 1 (`boot/m1n1.bin`). Build it with `./build.sh` after initializing the
+Gravity-owned `artwork` and `bootloader` submodules. `LOGO=/path/to/logo.icns` can
+override the default `GravityLinux_logomark.icns` asset.
+
+Stage 2 is not a standalone CDN bootstrap object. Build it as part of every
+Gravity OS image: m1n1 plus U-Boot and the M4 Mac mini device trees. Publish
+that image and its associated artifacts beneath `/os/`, and reference their
+relative paths and checksums from `installer_data.json`.
+
+The installer metadata and OS images are distribution release inputs. Fork or
+create a Gravity-owned replacement for the installer-data repository, retain
+only the `j773gap` device configuration, and change every image URL, checksum,
+name, and support URL to Gravity-owned resources before publishing.
+
+## Development and release
+
+`scripts/bootstrap.sh` is for a local server. `scripts/bootstrap-dev.sh` and
+`scripts/bootstrap-prod.sh` are configured for the Gravity CDN. The production
+release workflow must use Gravity-owned storage credentials; it must not retain
+the upstream storage-zone URL or secrets.
+
+The `artwork` and `bootloader` submodules are sourced from Gravity Linux repositories.
+Keep the bootloader's stage-1 and stage-2 M4 support in lockstep with this installer.
+
+The checked-out submodule revisions now match the local Gravity artwork and
+M4 bootloader sources. Those commits must be available at the URLs in
+`.gitmodules` before recursive cloning or CI can work from GitHub.
+
+The Python package and command are `gravity_firmware` and `gravity-fwextract`.
+The `src/gravity_firmware` symlink supports running directly from the source
+tree; the release bundle contains a real copy of that module.
+No AVD build or bundled AVD firmware is required for this release.
+
+Run firmware tests with `python3 -m unittest discover -s tests`.
 
 ## License
-Copyright The Asahi Linux Contributors
 
-The Asahi Linux installer is distributed under the MIT license. See LICENSE for the
-license text.
-
-This installer vendors [python-asn1](https://github.com/andrivet/python-asn1), which
-is distributed under the same license.
+This project is distributed under the MIT license. See [LICENSE](LICENSE).
+Upstream copyright notices are retained where required by that license.

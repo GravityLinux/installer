@@ -4,7 +4,7 @@ from .img4 import img4p_extract
 from .core import FWFile
 from .asmedia import extract_asmedia
 
-log = logging.getLogger("asahi_firmware.kernel")
+log = logging.getLogger("gravity_firmware.kernel")
 
 class KernelFWCollection(object):
     def __init__(self, source_path):
