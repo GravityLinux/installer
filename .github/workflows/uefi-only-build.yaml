@@ -76,6 +76,9 @@ jobs:
       - name: Create m1n1 uefi only boot.bin
         run: |
           mkdir -p out/esp/m1n1/
+          mkdir -p out/esp/licenses/gravity-artwork/
+          cp artwork/LICENSE artwork/README.md artwork/TRADEMARKS.md \
+             out/esp/licenses/gravity-artwork/
           gzip -k u-boot/u-boot-nodtb.bin
           cat bootloader/build/m1n1.bin \
               u-boot/dts/upstream/src/arm64/apple/t60*.dtb \

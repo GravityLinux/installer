@@ -102,6 +102,9 @@ echo "Copying files..."
 cp -r "$SRC"/* "$PACKAGE/"
 rm -f "$PACKAGE/gravity_firmware"
 cp -r "$FIRMWARE_TOOLS" "$PACKAGE/"
+mkdir -p "$PACKAGE/licenses/gravity-artwork"
+cp "$ARTWORK/LICENSE" "$ARTWORK/README.md" "$ARTWORK/TRADEMARKS.md" \
+   "$PACKAGE/licenses/gravity-artwork/"
 if [ -r "$LOGO" ]; then
     cp "$LOGO" "$PACKAGE/logo.icns"
 else
