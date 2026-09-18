@@ -64,7 +64,39 @@ The `src/gravity_firmware` symlink supports running directly from the source
 tree; the release bundle contains a real copy of that module.
 No AVD build or bundled AVD firmware is required for this release.
 
-Run firmware tests with `python3 -m unittest discover -s tests`.
+Run tests with `PYTHONPATH=src:. python3 -m unittest discover -s tests`.
+
+### macOS 26.6.2 recovery preflight
+
+The qualified `UniversalMac_26.6.2_25G83_Restore.ipsw` stores BaseSystem as
+`022-22048-093.dmg.aea`, not a mountable DMG. Before creating partitions, the
+installer stages that member, verifies its SHA-256, decodes it with macOS's
+`/usr/bin/aea`, verifies the decoded SHA-256 and DMG checksums, and mounts it
+read-only to validate the recovery version and required M4 Wi-Fi/Bluetooth
+firmware profiles. The decoded bytes, not the AEA wrapper, are then installed
+with the existing transparent APFS compression path.
+
+`src/recovery.py` pins the exact archive, decoded image and Apple-published
+release key. This key is not a machine secret; its provenance is documented in
+that module. Adding another IPSW requires qualifying new pins. No key-server
+request or third-party decryption binary is needed during installation. Allow
+at least 4 GiB of temporary free space for decoding. Temporary mounts use unique
+directories and are detached even if firmware collection fails.
+
+Native integration test (macOS, with the installer Python environment or a
+working Python 3 installation; requires permission to set file compression):
+
+```sh
+PYTHONPATH=src:tests python3 tests/validate_m4_recovery_macos.py \
+    /path/to/UniversalMac_26.6.2_25G83_Restore.ipsw /path/to/new-test-output
+```
+
+An HTTPS IPSW URL can replace the local path. This test runs the actual decoder,
+compression and firmware collectors, validates the CPIO/TAR inventory, and
+checks that disk0's partition layout is unchanged. It does not invoke the
+interactive installer, partition disks, personalize boot objects or change boot
+policy. A passing test validates the packaging pipeline, not hardware support
+or a completed installation. Output is retained for inspection.
 
 ## License
 

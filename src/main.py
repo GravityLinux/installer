@@ -514,9 +514,11 @@ class InstallerMain:
                  and (supported_fw is None or ipsw.version in supported_fw)
                  and (ipsw.devices is None or self.sysinfo.device_class in ipsw.devices)]
         avail = [ipsw for ipsw in minver
-                 if split_ver(ipsw.min_iboot) <= sys_iboot
+                 # "0" means no minimum, not a numeric firmware version to
+                 # compare against the string prefix in iBoot-/mBoot- versions.
+                 if (ipsw.min_iboot == "0" or split_ver(ipsw.min_iboot) <= sys_iboot)
                  and split_ver(ipsw.min_macos) <= sys_macos
-                 and split_ver(ipsw.min_sfr) <= sys_sfr
+                 and (ipsw.min_sfr == "0" or split_ver(ipsw.min_sfr) <= sys_sfr)
                  and (not ipsw.expert_only or self.expert)]
 
         minver.sort(key=lambda ipsw: split_ver(ipsw.version))

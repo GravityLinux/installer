@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 import os, os.path, plistlib, shutil, sys, stat, subprocess, urlcache, zipfile, logging, json, tempfile
 import osenum
+from recovery import RecoveryImage, mounted_recovery
 from gravity_firmware.wifi import WiFiFWCollection
 from gravity_firmware.bluetooth import BluetoothFWCollection
 from gravity_firmware.multitouch import MultitouchFWCollection
@@ -21,6 +22,7 @@ class StubInstaller(PackageInstaller):
         self.stub_info = {}
         self.pkg = None
         self.is_ota = False
+        self.recovery_image = None
 
     def load_ipsw(self, ipsw_info):
         self.install_version = ipsw_info.version.split(maxsplit=1)[0]
@@ -48,6 +50,43 @@ class StubInstaller(PackageInstaller):
         self.flush_progress()
         logging.info(f"OS package opened")
         print()
+        self.preflight_recovery()
+
+    def preflight_recovery(self):
+        if self.is_ota:
+            return
+        identity = self.load_identity(prepare_paths=False)
+        member = identity["Manifest"]["BaseSystem"]["Info"]["Path"]
+        if not member.endswith(".aea"):
+            return
+        p_progress("Decoding and validating recovery before partitioning...")
+        image = RecoveryImage(self.pkg, member, self.install_version)
+        try:
+            machine = identity["Info"]["DeviceClass"].removesuffix("ap")
+            with mounted_recovery(image.path) as mount:
+                with (mount / "System/Library/CoreServices/SystemVersion.plist").open("rb") as fd:
+                    version = plistlib.load(fd)["ProductVersion"]
+                if version != self.install_version:
+                    raise ValueError(f"Unexpected recovery version: {version}")
+                wifi = self.recovery_wifi_source(mount)
+                # These collectors fail if the required M4 profile is incomplete.
+                list(WiFiFWCollection(wifi, machine=machine).files())
+                list(BluetoothFWCollection(str(mount / "usr/share/firmware/bluetooth"),
+                                           machine=machine).files())
+        except BaseException:
+            image.close()
+            raise
+        self.recovery_image = image
+        p_success("Recovery image and Wi-Fi/Bluetooth firmware validated.")
+
+    @staticmethod
+    def recovery_wifi_source(mount):
+        for relative in ("System/Library/DriverExtensions/com.apple.DriverKit-AppleBCMWLAN.dext/Firmware",
+                         "usr/share/firmware/wifi"):
+            path = os.path.join(mount, relative)
+            if os.path.isdir(path):
+                return path
+        raise FileNotFoundError("Could not find recovery Wi-Fi firmware")
 
     def prepare_volume(self, part):
         logging.info(f"StubInstaller.prepare_volume({part.name=!r})")
@@ -211,8 +250,9 @@ class StubInstaller(PackageInstaller):
                 else:
                     logging.info("'gravity' dir not found in ESP")
 
-    def load_identity(self):
-        self.get_paths()
+    def load_identity(self, prepare_paths=True):
+        if prepare_paths:
+            self.get_paths()
 
         logging.info("Parsing metadata...")
 
@@ -245,6 +285,17 @@ class StubInstaller(PackageInstaller):
         self.identity = identity
         manifest["BuildIdentities"] = [identity]
         return identity
+
+    def restore_bundle_path(self):
+        bless2 = self.bootcaches["bless2"]
+        if "RestoreBundlePath" in bless2:
+            return bless2["RestoreBundlePath"]
+        # 26.6.2 omits this key. Its installed Preboot layout still places
+        # restore assets in <volume-group>/restore. Limit this compatibility
+        # fallback to the firmware layout we have actually inspected.
+        if self.install_version == "26.6.2":
+            return "restore"
+        raise ValueError(f"Missing RestoreBundlePath for macOS {self.install_version}")
 
     def install_files(self, cur_os):
         logging.info("StubInstaller.install_files()")
@@ -300,9 +351,8 @@ class StubInstaller(PackageInstaller):
 
         os.makedirs(self.pb_vgid, exist_ok=True)
 
-        bless2 = self.bootcaches["bless2"]
-
-        restore_bundle = os.path.join(self.pb_vgid, bless2["RestoreBundlePath"])
+        restore_path = self.restore_bundle_path()
+        restore_bundle = os.path.join(self.pb_vgid, restore_path)
         os.makedirs(restore_bundle, exist_ok=True)
         restore_manifest = os.path.join(restore_bundle, "BuildManifest.plist")
         with open(restore_manifest, "wb") as fd:
@@ -343,7 +393,7 @@ class StubInstaller(PackageInstaller):
 
         # This is a workaround for some screwiness in the macOS <12.0 bootability
         # code, which ends up putting the apticket in the wrong volume...
-        sys_restore_bundle = os.path.join(self.osi.system, bless2["RestoreBundlePath"])
+        sys_restore_bundle = os.path.join(self.osi.system, restore_path)
         if os.path.lexists(sys_restore_bundle):
             os.unlink(sys_restore_bundle)
         os.symlink(restore_bundle, sys_restore_bundle)
@@ -361,6 +411,11 @@ class StubInstaller(PackageInstaller):
         if self.is_ota:
             self.copy_recompress("AssetData/payloadv2/basesystem_patches/arm64eBaseSystem.dmg",
                                  os.path.join(basesystem_path, "arm64eBaseSystem.dmg"))
+        elif self.recovery_image is not None:
+            with self.recovery_image.path.open("rb") as source:
+                self.stream_compress(source, self.recovery_image.path.stat().st_size,
+                                     os.path.join(basesystem_path, "arm64eBaseSystem.dmg"),
+                                     crc=self.recovery_image.crc)
         else:
             self.copy_compress(identity["Manifest"]["BaseSystem"]["Info"]["Path"],
                                os.path.join(basesystem_path, "arm64eBaseSystem.dmg"))
@@ -413,8 +468,7 @@ class StubInstaller(PackageInstaller):
             shutil.rmtree("fud_firmware")
 
         os.makedirs("fud_firmware", exist_ok=True)
-        bless2 = self.bootcaches["bless2"]
-        restore_bundle = os.path.join(self.pb_vgid, bless2["RestoreBundlePath"])
+        restore_bundle = os.path.join(self.pb_vgid, self.restore_bundle_path())
         copied = set()
         kernel_path = None
         for identity in [self.identity]:
@@ -451,26 +505,15 @@ class StubInstaller(PackageInstaller):
         img = os.path.join(self.osi.recovery, self.osi.vgid,
                            "usr/standalone/firmware/arm64eBaseSystem.dmg")
         logging.info("Attaching recovery ramdisk")
-        subprocess.run(["hdiutil", "attach", "-quiet", "-readonly", "-mountpoint", "recovery", img],
-                       check=True)
-        try:
-            wifi_sources = (
-                "recovery/System/Library/DriverExtensions/"
-                "com.apple.DriverKit-AppleBCMWLAN.dext/Firmware",
-                "recovery/usr/share/firmware/wifi",
-            )
-            wifi_source = next(
-                (path for path in wifi_sources if os.path.isdir(path)), None
-            )
-            if wifi_source is None:
-                raise FileNotFoundError("Could not find recovery Wi-Fi firmware")
+        with mounted_recovery(img) as recovery:
+            wifi_source = self.recovery_wifi_source(recovery)
 
             logging.info(f"Collecting WiFi firmware from {wifi_source}")
             col = WiFiFWCollection(wifi_source, machine=machine)
             pkg.add_files(sorted(col.files()))
             logging.info("Collecting Bluetooth firmware")
             col = BluetoothFWCollection(
-                "recovery/usr/share/firmware/bluetooth/", machine=machine
+                str(recovery / "usr/share/firmware/bluetooth"), machine=machine
             )
             pkg.add_files(sorted(col.files()))
             logging.info("Collecting Multitouch firmware")
@@ -478,7 +521,7 @@ class StubInstaller(PackageInstaller):
             pkg.add_files(sorted(col.files()))
             if machine != "j773g":
                 logging.info("Collecting ISP firmware")
-                col = ISPFWCollection("recovery/usr/sbin/")
+                col = ISPFWCollection(str(recovery / "usr/sbin"))
                 pkg.add_files(sorted(col.files()))
             logging.info("Collecting Kernel firmware")
             col = KernelFWCollection(kernel_path)
@@ -506,10 +549,10 @@ class StubInstaller(PackageInstaller):
                 )
                 tar_args = ["tar", "czf", "all_firmware.tar.gz",
                             "fud_firmware",
-                            "-C", "recovery/usr/share", "firmware"]
+                            "-C", str(recovery / "usr/share"), "firmware"]
                 if machine != "j773g":
                     tar_args.extend([
-                        "-C", "../../usr/sbin", "appleh13camerad",
+                        "-C", str(recovery / "usr/sbin"), "appleh13camerad",
                         "-C", os.path.dirname(FACTORY_DIR),
                         os.path.basename(FACTORY_DIR),
                     ])
@@ -518,9 +561,6 @@ class StubInstaller(PackageInstaller):
                 ])
                 subprocess.run(tar_args, check=True)
             self.copy_idata.append(("all_firmware.tar.gz", "all_firmware.tar.gz"))
-        finally:
-            logging.info("Detaching recovery ramdisk")
-            subprocess.run(["hdiutil", "detach", "-quiet", "recovery"], check=True)
 
     def collect_installer_data(self, path, merge_stub_info=False):
         p_progress("Collecting installer data...")
