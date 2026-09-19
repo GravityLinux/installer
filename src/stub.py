@@ -4,6 +4,7 @@ import osenum
 from recovery import RecoveryImage, mounted_recovery
 from gravity_firmware.wifi import WiFiFWCollection
 from gravity_firmware.bluetooth import BluetoothFWCollection
+from gravity_firmware.bluetooth_calibration import BluetoothCalibration
 from gravity_firmware.multitouch import MultitouchFWCollection
 from gravity_firmware.kernel import KernelFWCollection
 from gravity_firmware.isp import ISPFWCollection
@@ -463,6 +464,10 @@ class StubInstaller(PackageInstaller):
         if machine.endswith("ap"):
             machine = machine[:-2]
 
+        calibration = BluetoothCalibration.collect() if machine == "j773g" else None
+        if calibration is not None:
+            pkg.add_files(calibration.files())
+
         logging.info("Collecting FUD firmware")
         if os.path.exists("fud_firmware"):
             shutil.rmtree("fud_firmware")
@@ -538,6 +543,8 @@ class StubInstaller(PackageInstaller):
             logging.info("Making fallback firmware archive")
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.makedirs(f"{tmpdir}/apple")
+                if calibration is not None:
+                    calibration.write_raw(tmpdir)
                 for name, fwf in als_files:
                     open(f"{tmpdir}/{name}", "wb").write(fwf.data)
                 # Newer recovery images keep the complete Wi-Fi set inside

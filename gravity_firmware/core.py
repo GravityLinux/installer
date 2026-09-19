@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-import tarfile, io, logging, os.path
+import tarfile, io, logging, os.path, re
 from hashlib import sha256
 from . import cpio
 
@@ -80,7 +80,7 @@ class FWPackage(object):
             ti.linkname = os.path.join("vendorfw", ti.linkname)
         self.cpiofile.addfile(ti, fd)
 
-        if name in UBOOT_FILES:
+        if name in UBOOT_FILES or re.fullmatch(r"brcm/brcmbt4388-[0-9a-f]{12}-bf\.bin", name):
             path = os.path.join(self.path, "u-boot", name)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "wb") as fd:

@@ -102,3 +102,20 @@ or a completed installation. Output is retained for inspection.
 
 This project is distributed under the MIT license. See [LICENSE](LICENSE).
 Upstream copyright notices are retained where required by that license.
+
+### M4 Bluetooth factory calibration
+
+For J773g, firmware collection reads the local machine's
+`BWCl-sakhalin-4388-C2-*` factory records and extracts the opaque `BTBF`
+beamforming payload. It checks the IMG4/IM4P and record structure, size and
+`BLOB` marker; it does not verify Apple's signature. Conflicting records are
+rejected. No factory record or calibration data is bundled with the installer.
+
+The `/chosen` Bluetooth address binds the output to its radio:
+`vendorfw/u-boot/brcm/brcmbt4388-<12 lowercase hex address digits>-bf.bin`
+on the ESP. The raw firmware archive saves the payload, address, SHA-256 and
+source-record hashes so `gravity-fwextract` can reproduce it during updates.
+U-Boot loads only the file matching the live DT address and supplies
+`brcm,taurus-bf-cal-blob` before Linux boots. Linux consumes the DT property.
+Older archives without calibration remain usable but cannot supply Bluetooth
+calibration; recollect firmware on the original Mac to add it.
