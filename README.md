@@ -119,3 +119,10 @@ U-Boot loads only the file matching the live DT address and supplies
 `brcm,taurus-bf-cal-blob` before Linux boots. Linux consumes the DT property.
 Older archives without calibration remain usable but cannot supply Bluetooth
 calibration; recollect firmware on the original Mac to add it.
+
+Wi-Fi follows the same path: the `WCAL` record from BWCl is bound to
+`/chosen/mac-address-wifi0`, saved in `apple/wifi-calibration.{bin,json}` in
+the raw archive, and written to
+`vendorfw/u-boot/brcm/brcmfmac4388-<12 lowercase hex address digits>-cal.bin`.
+U-Boot injects this into the Wi-Fi node's `brcm,cal-blob` property. Existing
+DT calibration takes precedence for both radios.

@@ -4,7 +4,7 @@ import pathlib, tempfile, subprocess, os.path
 from .core import FWPackage
 from .wifi import WiFiFWCollection
 from .bluetooth import BluetoothFWCollection
-from .bluetooth_calibration import BluetoothCalibration
+from .radio_calibration import BluetoothCalibration, WiFiCalibration
 from .multitouch import MultitouchFWCollection
 from .kernel import KernelFWCollection
 from .isp import ISPFWCollection
@@ -40,9 +40,10 @@ def update_firmware(source, dest, machine=None, open_firmware=None):
         pkg.add_files(sorted(col.files()))
 
         if machine == "j773g":
-            calibration = BluetoothCalibration.from_archive(tmpdir)
-            if calibration is not None:
-                pkg.add_files(calibration.files())
+            for kind in (BluetoothCalibration, WiFiCalibration):
+                calibration = kind.from_archive(tmpdir)
+                if calibration is not None:
+                    pkg.add_files(calibration.files())
 
         col = MultitouchFWCollection(str(tmpdir.joinpath("fud_firmware")))
         pkg.add_files(sorted(col.files()))

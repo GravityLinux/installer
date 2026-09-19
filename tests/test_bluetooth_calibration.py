@@ -4,9 +4,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from gravity_firmware import asn1
-from gravity_firmware.bluetooth_calibration import (
-    BluetoothCalibration, RAW_BLOB, RAW_METADATA, bluetooth_address, extract_btbf,
+from gravity_firmware.radio_calibration import asn1
+from gravity_firmware.radio_calibration import (
+    BluetoothCalibration, WiFiCalibration, RAW_BLOB, RAW_METADATA, bluetooth_address, extract_btbf, extract_record,
 )
 from gravity_firmware.core import FWPackage
 
@@ -15,14 +15,14 @@ BLOB = b"BLOB" + bytes(range(256))
 TREE = [{"IORegistryEntryName": "chosen", "mac-address-bluetooth0": bytes.fromhex(ADDRESS)}]
 
 
-def factory(blobs=(BLOB,)):
+def factory(blobs=(BLOB,), record=b"BTBF"):
     payload = asn1.Encoder()
     payload.start()
     payload.enter(asn1.Numbers.Sequence)
     payload.write(int.from_bytes(b"BWCl", "little"))
     for blob in blobs:
         payload.enter(asn1.Numbers.Sequence)
-        payload.write(int.from_bytes(b"BTBF", "little"))
+        payload.write(int.from_bytes(record, "little"))
         payload.write("synthetic", asn1.Numbers.IA5String)
         payload.write(blob, asn1.Numbers.OctetString)
         payload.leave()
@@ -51,6 +51,24 @@ class CalibrationTests(unittest.TestCase):
             with self.subTest(length=len(raw)):
                 with self.assertRaises((ValueError, asn1.Error)):
                     extract_btbf(raw)
+
+    def test_wifi_record_and_archive(self):
+        raw = factory(record=b"WCAL")
+        self.assertEqual(extract_record(raw, b"WCAL"), BLOB)
+        with self.assertRaises(ValueError):
+            extract_btbf(raw)
+        tree = [{"IORegistryEntryName": "chosen", "mac-address-wifi0": bytes.fromhex(ADDRESS)}]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "BWCl-sakhalin-4388-C2-test").write_bytes(raw)
+            wifi = WiFiCalibration.collect(root, tree)
+            wifi.write_raw(root)
+            restored = WiFiCalibration.from_archive(root)
+            self.assertEqual(restored.address, ADDRESS)
+            with FWPackage(root) as package:
+                package.add_files(restored.files())
+            self.assertEqual((root / f"u-boot/brcm/brcmfmac4388-{ADDRESS}-cal.bin").read_bytes(), BLOB)
+            self.assertIsNone(BluetoothCalibration.from_archive(root))
 
     def test_address(self):
         self.assertEqual(bluetooth_address(TREE), ADDRESS)

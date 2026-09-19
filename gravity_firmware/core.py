@@ -80,7 +80,7 @@ class FWPackage(object):
             ti.linkname = os.path.join("vendorfw", ti.linkname)
         self.cpiofile.addfile(ti, fd)
 
-        if name in UBOOT_FILES or re.fullmatch(r"brcm/brcmbt4388-[0-9a-f]{12}-bf\.bin", name):
+        if name in UBOOT_FILES or re.fullmatch(r"brcm/(brcmbt4388-[0-9a-f]{12}-bf|brcmfmac4388-[0-9a-f]{12}-cal)\.bin", name):
             path = os.path.join(self.path, "u-boot", name)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "wb") as fd:
