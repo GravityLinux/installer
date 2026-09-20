@@ -343,6 +343,8 @@ class PackageInstaller:
             assert subpath[0:1] != "/"
 
             destpath = os.path.join(dest, subpath)
+            # ZIP files may omit explicit parent directory entries.
+            os.makedirs(os.path.dirname(destpath), exist_ok=True)
 
             if info.is_dir():
                 os.makedirs(destpath, exist_ok=True)

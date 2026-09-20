@@ -147,6 +147,9 @@ class OSInstaller(PackageInstaller):
                 p_plain(f"  Extracting {image} into {info.name} partition...")
                 logging.info(f"Extract: {image}")
                 zinfo = self.pkg.getinfo(image)
+                current = self.dutil.get_partition_info(info.name, refresh_apfs=False)
+                if zinfo.file_size > current.size:
+                    raise Exception("Image exceeds destination partition size")
                 if zinfo.file_size % (4 * 1024) != 0:
                     raise Exception("The size of the rootfs image file must be a multiple of 4KiB.")
                 with self.pkg.open(image) as sfd, \

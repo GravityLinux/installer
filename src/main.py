@@ -18,7 +18,7 @@ MIN_FREE = psize("1GB")
 # 2.5GB stub + 5GB OS + 0.5GB EFI = 8GB, round up to 10GB
 MIN_INSTALL_FREE = psize("10GB")
 
-MIN_MACOS_VERSION = "26.6.2"
+MIN_MACOS_VERSION = "26.5"
 
 @dataclass
 class IPSW:
@@ -40,7 +40,7 @@ DEVICES = {"j773gap": Device("26.6.2", False)}  # Mac mini (M4, 2024)
 
 IPSW_VERSIONS = [
     # Keep this entry current with an Apple-signed restore image for Mac16,10.
-    IPSW("26.6.2", "26.6.2", "0", "0", False, ["j773gap"],
+    IPSW("26.6.2", "26.5", "0", "0", False, ["j773gap"],
          "https://updates.cdn-apple.com/2026SummerFCS/fullrestores/140-75212/A2A24B94-1FC1-45A3-93F7-C51B02AF1F4D/UniversalMac_26.6.2_25G83_Restore.ipsw"),
 ]
 

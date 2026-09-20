@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 import os, os.path, plistlib, shutil, sys, stat, subprocess, urlcache, zipfile, logging, json, tempfile
 import osenum
+import tarfile
 from recovery import RecoveryImage, mounted_recovery
 from gravity_firmware.wifi import WiFiFWCollection
 from gravity_firmware.bluetooth import BluetoothFWCollection
@@ -551,26 +552,18 @@ class StubInstaller(PackageInstaller):
                     calibration.write_raw(tmpdir)
                 for name, fwf in als_files:
                     open(f"{tmpdir}/{name}", "wb").write(fwf.data)
-                # Newer recovery images keep the complete Wi-Fi set inside
-                # the DriverExtension.  Preserve it under a stable raw name
-                # for gravity-fwextract on the installed Linux system.
-                shutil.copytree(
-                    wifi_source,
-                    os.path.join(tmpdir, "apple_bcmwlan_firmware"),
-                )
-                tar_args = ["tar", "czf", "all_firmware.tar.gz",
-                            "fud_firmware",
-                            "-C", str(recovery / "usr/share"), "firmware"]
-                if machine != "j773g":
-                    tar_args.extend([
-                        "-C", str(recovery / "usr/sbin"), "appleh13camerad",
-                        "-C", os.path.dirname(FACTORY_DIR),
-                        os.path.basename(FACTORY_DIR),
-                    ])
-                tar_args.extend([
-                    "-C", tmpdir, "apple", "apple_bcmwlan_firmware",
-                ])
-                subprocess.run(tar_args, check=True)
+                # Archive the read-only recovery files directly. copytree's
+                # copystat tries to apply Apple's protected flags to temporary
+                # files and fails even when their contents are readable.
+                with tarfile.open("all_firmware.tar.gz", "w:gz") as archive:
+                    archive.add("fud_firmware", arcname="fud_firmware")
+                    archive.add(recovery / "usr/share/firmware", arcname="firmware")
+                    archive.add(wifi_source, arcname="apple_bcmwlan_firmware")
+                    archive.add(os.path.join(tmpdir, "apple"), arcname="apple")
+                    if machine != "j773g":
+                        archive.add(recovery / "usr/sbin/appleh13camerad",
+                                    arcname="appleh13camerad")
+                        archive.add(FACTORY_DIR, arcname=os.path.basename(FACTORY_DIR))
             self.copy_idata.append(("all_firmware.tar.gz", "all_firmware.tar.gz"))
 
     def collect_installer_data(self, path, merge_stub_info=False):

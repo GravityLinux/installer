@@ -246,22 +246,23 @@ class DiskUtil:
             and fs.lower() == "apfs"):
             return self.partitionDisk(after, fs, label, size)
 
-        self.action("addPartition", after, fs, label, size, verbose=True)
-
         disk = after.rsplit("s", 1)[0]
+        before = {p.uuid for p in self.get_partitions(disk) if not p.free}
+        self.action("addPartition", after, fs, label, size, verbose=True)
 
         self.get_list()
         parts = self.get_partitions(disk)
 
-        for i, part in enumerate(parts):
-            logging.info(f"Checking #{i} {part.name}...")
-            if part.name == after:
-                logging.info(f"Found previous partition {part.name}...")
-                new_part = self.get_partition_info(parts[i + 1].name, refresh_apfs=(fs == "apfs"))
-                logging.info(f"New partition: {new_part!r}")
-                return new_part
-
-        raise Exception("Could not find new partition")
+        # macOS may insert Apple_Boot helpers between Linux partitions.
+        # Identify the newly created partition by UUID and requested type.
+        requested_type = "Apple_APFS" if fs.lower() == "apfs" else fs.strip("%")
+        candidates = [p for p in parts if not p.free and p.uuid not in before
+                      and p.type.lower() == requested_type.lower()]
+        if len(candidates) != 1:
+            raise Exception(f"Could not uniquely identify new {requested_type} partition")
+        new_part = self.get_partition_info(candidates[0].name, refresh_apfs=(fs.lower() == "apfs"))
+        logging.info(f"New partition: {new_part!r}")
+        return new_part
 
     def changeVolumeRole(self, volume, role):
         self.action("apfs", "changeVolumeRole", volume, role, verbose=True)
