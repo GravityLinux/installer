@@ -256,8 +256,14 @@ class DiskUtil:
         # macOS may insert Apple_Boot helpers between Linux partitions.
         # Identify the newly created partition by UUID and requested type.
         requested_type = "Apple_APFS" if fs.lower() == "apfs" else fs.strip("%")
+        # diskutil accepts %Linux% but reports Content as Linux Filesystem.
+        # Normalize this alias without weakening the UUID/type uniqueness check.
+        def canonical_type(value):
+            value = value.lower()
+            return "linux filesystem" if value == "linux" else value
+
         candidates = [p for p in parts if not p.free and p.uuid not in before
-                      and p.type.lower() == requested_type.lower()]
+                      and canonical_type(p.type) == canonical_type(requested_type)]
         if len(candidates) != 1:
             raise Exception(f"Could not uniquely identify new {requested_type} partition")
         new_part = self.get_partition_info(candidates[0].name, refresh_apfs=(fs.lower() == "apfs"))
