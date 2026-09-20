@@ -7,8 +7,12 @@ def build(src, dest, vars):
     with open(src, "rb") as fd:
         m1n1_data = fd.read()
 
+    # Align the complete boot object, including variables, for T8132 registration.
+    boot_object = m1n1_data + vars
+    boot_object += b"\0" * (-len(boot_object) % (64 * 1024))
+
     with open(dest, "wb") as fd:
-        fd.write(m1n1_data + vars)
+        fd.write(boot_object)
 
 def extract_vars(src):
     with open(src, "rb") as fd:
