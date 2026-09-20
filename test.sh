@@ -11,7 +11,7 @@ fi
 export INSTALLER_BASE=https://cdn.gravitylinux.org/installer-dev
 export REPO_BASE=https://cdn.gravitylinux.org
 
-make -C "bootloader" RELEASE=1 CHAINLOADING=1 -j4
+make -C "bootloader" RELEASE=1 CHAINLOADING=1 NO_DISPLAY=1 -j4
 
 sudo rm -rf /tmp/gravity-install
 mkdir -p /tmp/gravity-install

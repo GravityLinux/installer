@@ -90,9 +90,10 @@ else
     echo "Building m1n1..."
     BUILT_STAGE1=1
 
-    # Do it twice in case of build system shenanigans with versions
-    make -C "$M1N1" RELEASE=1 CHAINLOADING=1 -j4
-    make -C "$M1N1" RELEASE=1 CHAINLOADING=1 -j4
+    # Match the RPM configuration: the M4 DCP iBoot interface is not supported.
+    # Do it twice in case of build system shenanigans with versions.
+    make -C "$M1N1" RELEASE=1 CHAINLOADING=1 NO_DISPLAY=1 -j4
+    make -C "$M1N1" RELEASE=1 CHAINLOADING=1 NO_DISPLAY=1 -j4
 
     M1N1_STAGE1="$M1N1/build/m1n1.bin"
 fi
