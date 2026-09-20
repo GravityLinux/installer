@@ -36,9 +36,13 @@ class IPSWSelectionTests(unittest.TestCase):
             self.choose(min_iboot="iBoot-18000.161.11")
 
     def test_macos_minimum_is_enforced(self):
-        self.installer.sysinfo.macos_ver = "26.6.1"
+        self.installer.sysinfo.macos_ver = "26.4"
         with self.assertRaises(SystemExit):
             self.choose()
+
+    def test_macos_265_selects_2662_firmware(self):
+        self.installer.sysinfo.macos_ver = "26.5"
+        self.assertEqual(self.choose().version, "26.6.2")
 
     def test_real_sfr_minimum_is_enforced(self):
         with self.assertRaises(SystemExit):
