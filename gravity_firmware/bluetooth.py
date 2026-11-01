@@ -16,10 +16,15 @@ INCOMPLETE_CHIPS = set([
     ('4388', 'b0', 'apple,amami'),
 ])
 
+# The Linux driver builds the firmware name from the OTP board parameters at
+# runtime, so the vendor suffix is not fixed per machine: the same model can
+# ship with different Bluetooth modules. The M4 Mac mini (j773g) uses USI
+# parts, so the suffix must be "u"; emitting "a" (AMKOR) means the driver can
+# never find the file and Bluetooth does not probe.
 MACHINE_OUTPUTS = {
     "j773g": (
-        "brcm/brcmbt4388c2-apple,sakhalin-a.bin",
-        "brcm/brcmbt4388c2-apple,sakhalin-a.ptb",
+        "brcm/brcmbt4388c2-apple,sakhalin-u.bin",
+        "brcm/brcmbt4388c2-apple,sakhalin-u.ptb",
     ),
 }
 

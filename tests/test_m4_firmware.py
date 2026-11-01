@@ -30,18 +30,18 @@ M4_WIFI_OUTPUTS = {
 
 M4_BT_SOURCES = {
     "BCM4388C2_23.5.224.1474_PCIE_macOS_Willamette_"
-    "Sakhalin_CLPC_3ANT_OS_AMKOR_20251203.bin": b"bluetooth-firmware",
+    "Sakhalin_CLPC_3ANT_OS_USI_20251203.bin": b"bluetooth-firmware",
     "BCM4388C2_EVTv1_PCIE_macOS_Willamette_"
-    "Sakhalin_CLPC_3ANT_OS_AMKOR_K_R_20240625.ptb": b"bluetooth-ptb",
+    "Sakhalin_CLPC_3ANT_OS_USI_K_R_20240625.ptb": b"bluetooth-ptb",
     "BCM4388C2_23.5.224.1475_PCIE_macOS_Willamette_"
-    "Sakhalin_CLPC_3ANT_OS_USI_20251203.bin": b"wrong-bluetooth-vendor",
+    "Sakhalin_CLPC_3ANT_OS_AMKOR_20251203.bin": b"wrong-bluetooth-vendor",
     "BCM4388C2_EVTv1_PCIE_macOS_Willamette_"
-    "Sakhalin_CLPC_3ANT_OS_USI_K_R_20240625.ptb": b"wrong-bluetooth-ptb",
+    "Sakhalin_CLPC_3ANT_OS_AMKOR_K_R_20240625.ptb": b"wrong-bluetooth-ptb",
 }
 
 M4_BT_OUTPUTS = {
-    "brcm/brcmbt4388c2-apple,sakhalin-a.bin",
-    "brcm/brcmbt4388c2-apple,sakhalin-a.ptb",
+    "brcm/brcmbt4388c2-apple,sakhalin-u.bin",
+    "brcm/brcmbt4388c2-apple,sakhalin-u.ptb",
 }
 
 
@@ -146,8 +146,8 @@ class M4FirmwareTest(unittest.TestCase):
             dict(WiFiFWCollection(str(self.wifi), machine="j773g").files())
 
     def test_m4_bluetooth_profile_fails_on_incomplete_input(self):
-        next(self.bluetooth.glob("*AMKOR*.ptb")).unlink()
-        with self.assertRaisesRegex(FileNotFoundError, "sakhalin-a.ptb"):
+        next(self.bluetooth.glob("*USI*.ptb")).unlink()
+        with self.assertRaisesRegex(FileNotFoundError, "sakhalin-u.ptb"):
             dict(BluetoothFWCollection(
                 str(self.bluetooth), machine="j773g"
             ).files())
