@@ -21,6 +21,13 @@ MACHINE_OUTPUTS = {
         "brcm/brcmbt4388c2-apple,sakhalin-a.bin",
         "brcm/brcmbt4388c2-apple,sakhalin-a.ptb",
     ),
+    # The 13-inch M4 MacBook Air ships with modules from either vendor.
+    "j713": (
+        "brcm/brcmbt4388c2-apple,garden-a.bin",
+        "brcm/brcmbt4388c2-apple,garden-a.ptb",
+        "brcm/brcmbt4388c2-apple,garden-u.bin",
+        "brcm/brcmbt4388c2-apple,garden-u.ptb",
+    ),
 }
 
 class BluetoothFWCollection(object):

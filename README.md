@@ -1,7 +1,8 @@
 # Gravity Linux installer
 
-The Gravity Linux installer installs Gravity Linux on exactly one Apple Silicon
-model: the M4 Mac mini (`t8132`, `j773gap`). It prepares the Apple boot chain,
+The Gravity Linux installer installs Gravity Linux on two Apple Silicon
+models: the M4 Mac mini (`t8132`, `j773gap`) and the 13-inch M4 MacBook Air
+(`t8132`, `j713ap`). It prepares the Apple boot chain,
 installs the selected Gravity Linux image, and collects the device firmware
 needed by that installation.
 
@@ -36,14 +37,15 @@ Gravity-owned `artwork` and `bootloader` submodules. `LOGO=/path/to/logo.icns` c
 override the default `GravityLinux_logomark.icns` asset.
 
 Stage 2 is not a standalone CDN bootstrap object. Build it as part of every
-Gravity OS image: m1n1 plus U-Boot and the M4 Mac mini device trees. Publish
+Gravity OS image: m1n1 plus U-Boot and the supported device trees. Publish
 that image and its associated artifacts beneath `/os/`, and reference their
 relative paths and checksums from `installer_data.json`.
 
 The installer metadata and OS images are distribution release inputs. Fork or
 create a Gravity-owned replacement for the installer-data repository, retain
-only the `j773gap` device configuration, and change every image URL, checksum,
-name, and support URL to Gravity-owned resources before publishing.
+only the `j773gap` and `j713ap` device configurations, and change every image
+URL, checksum, name, and support URL to Gravity-owned resources before
+publishing.
 
 ## Development and release
 
@@ -126,3 +128,8 @@ the raw archive, and written to
 `vendorfw/u-boot/brcm/brcmfmac4388-<12 lowercase hex address digits>-cal.bin`.
 U-Boot injects this into the Wi-Fi node's `brcm,cal-blob` property. Existing
 DT calibration takes precedence for both radios.
+
+J713 needs none of this: its Wi-Fi and Bluetooth calibration is in the Apple
+device tree, and m1n1 copies it into the boot DT. Its firmware profile is the
+`apple,garden` board-specific Wi-Fi and Bluetooth files for both module vendors
+and every antenna SKU, plus the multi-touch firmware.

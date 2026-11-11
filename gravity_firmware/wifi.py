@@ -20,6 +20,28 @@ MACHINE_ALIASES = {
         "brcm/brcmfmac4388c0-pcie.sig":
             "C-4388__s-C2/sakhalin.sig",
     },
+    # The 13-inch M4 MacBook Air has a board type in its device tree, so Linux
+    # requests board-specific names.  The module vendor and antenna SKU differ
+    # between units; provide every variant macOS ships for this board.
+    "j713": {
+        "brcm/brcmfmac4388c0-pcie.apple,garden.bin":
+            "C-4388__s-C2/garden.trx",
+        "brcm/brcmfmac4388c0-pcie.apple,garden.sig":
+            "C-4388__s-C2/garden.sig",
+        **{
+            f"brcm/brcmfmac4388c0-pcie.apple,garden-{sku}.{ext}":
+                f"C-4388__s-C2/garden-{sku}.{source}"
+            for sku in ("ID", "X0", "X2", "X3")
+            for ext, source in (("bin", "trx"), ("clm_blob", "clmb"),
+                                ("txcap_blob", "txcb"))
+        },
+        **{
+            f"brcm/brcmfmac4388c0-pcie.apple,garden-WLMT-{vendor}-4.9-{sku}.txt":
+                f"C-4388__s-C2/P-garden-{sku}_M-WLMT_V-{vendor}__m-4.9.txt"
+            for sku in ("ID", "X0", "X2", "X3")
+            for vendor in ("a", "u")
+        },
+    },
 }
 
 class FWNode(object):

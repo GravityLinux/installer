@@ -11,6 +11,7 @@ from .core import FWFile
 MACHINE_FILES = {
     # AVD is not part of the first M4 release. No bundled open firmware needed.
     "j773g": (),
+    "j713": (),
 }
 
 

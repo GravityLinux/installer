@@ -48,7 +48,7 @@ def update_firmware(source, dest, machine=None, open_firmware=None):
         col = MultitouchFWCollection(str(tmpdir.joinpath("fud_firmware")))
         pkg.add_files(sorted(col.files()))
 
-        if machine != "j773g":
+        if machine not in ("j773g", "j713"):
             col = ISPFWCollection(str(tmpdir))
             pkg.add_files(sorted(col.files()))
 
@@ -73,7 +73,7 @@ def main():
                         help='path containing raw firmware')
     parser.add_argument('dest', metavar='DEST', type=pathlib.Path,
                         help='output path for vendor firmware')
-    parser.add_argument('--machine', choices=('j773g',), required=True,
+    parser.add_argument('--machine', choices=('j773g', 'j713'), required=True,
                         help='machine profile for required generic aliases')
     parser.add_argument('--open-firmware', type=pathlib.Path,
                         help='root containing open firmware to add')

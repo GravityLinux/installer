@@ -36,11 +36,15 @@ class Device:
     expert_only: bool
 
 CHIP_MIN_VER = {0x8132: "26.6.2"}  # T8132, M4
-DEVICES = {"j773gap": Device("26.6.2", False)}  # Mac mini (M4, 2024)
+DEVICES = {
+    "j773gap": Device("26.6.2", False),  # Mac mini (M4, 2024)
+    "j713ap": Device("26.6.2", False),  # MacBook Air (13-inch, M4, 2025)
+}
 
 IPSW_VERSIONS = [
-    # Keep this entry current with an Apple-signed restore image for Mac16,10.
-    IPSW("26.6.2", "26.5", "0", "0", False, ["j773gap"],
+    # Keep this entry current with an Apple-signed restore image for Mac16,10
+    # and Mac16,12.
+    IPSW("26.6.2", "26.5", "0", "0", False, ["j773gap", "j713ap"],
          "https://updates.cdn-apple.com/2026SummerFCS/fullrestores/140-75212/A2A24B94-1FC1-45A3-93F7-C51B02AF1F4D/UniversalMac_26.6.2_25G83_Restore.ipsw"),
 ]
 
@@ -891,7 +895,8 @@ class InstallerMain:
         self.device = DEVICES.get(self.sysinfo.device_class, None)
         if not self.chip_min_ver or not self.device or (self.device.expert_only and not self.expert):
             p_error("This device is not supported yet!")
-            p_error("Gravity Linux supports only the M4 Mac mini (j773gap).")
+            p_error("Gravity Linux supports only the M4 Mac mini (j773gap) and the")
+            p_error("13-inch M4 MacBook Air (j713ap).")
             print()
             p_error("   https://gravitylinux.org/docs/hardware")
             print()

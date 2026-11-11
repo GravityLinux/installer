@@ -44,6 +44,15 @@ class IPSWSelectionTests(unittest.TestCase):
         self.installer.sysinfo.macos_ver = "26.5"
         self.assertEqual(self.choose().version, "26.6.2")
 
+    def test_macbook_air_13_selects_2662_firmware(self):
+        self.installer.sysinfo.device_class = "j713ap"
+        self.installer.device = main.DEVICES["j713ap"]
+        self.assertEqual(self.choose().version, "26.6.2")
+
+    def test_macbook_air_15_is_not_supported(self):
+        self.assertNotIn("j715ap", main.DEVICES)
+        self.assertNotIn("j715ap", main.IPSW_VERSIONS[0].devices)
+
     def test_real_sfr_minimum_is_enforced(self):
         with self.assertRaises(SystemExit):
             self.choose(min_sfr="26.6.3")

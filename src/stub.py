@@ -13,6 +13,9 @@ from gravity_firmware.als import AlsFWCollection, FACTORY_DIR
 from gravity_firmware.open_firmware import OpenFirmwareCollection
 from util import *
 
+# Linux uses neither ISP nor ALS firmware on these machines.
+NO_ISP_ALS = ("j773g", "j713")
+
 class StubInstaller(PackageInstaller):
     def __init__(self, sysinfo, dutil, osinfo):
         super().__init__()
@@ -529,7 +532,7 @@ class StubInstaller(PackageInstaller):
             logging.info("Collecting Multitouch firmware")
             col = MultitouchFWCollection("fud_firmware/")
             pkg.add_files(sorted(col.files()))
-            if machine != "j773g":
+            if machine not in NO_ISP_ALS:
                 logging.info("Collecting ISP firmware")
                 col = ISPFWCollection(str(recovery / "usr/sbin"))
                 pkg.add_files(sorted(col.files()))
@@ -537,7 +540,7 @@ class StubInstaller(PackageInstaller):
             col = KernelFWCollection(kernel_path)
             pkg.add_files(sorted(col.files()))
             als_files = []
-            if machine != "j773g":
+            if machine not in NO_ISP_ALS:
                 logging.info("Collecting ALS firmware")
                 col = AlsFWCollection()
                 als_files = sorted(col.files())
@@ -560,7 +563,7 @@ class StubInstaller(PackageInstaller):
                     archive.add(recovery / "usr/share/firmware", arcname="firmware")
                     archive.add(wifi_source, arcname="apple_bcmwlan_firmware")
                     archive.add(os.path.join(tmpdir, "apple"), arcname="apple")
-                    if machine != "j773g":
+                    if machine not in NO_ISP_ALS:
                         archive.add(recovery / "usr/sbin/appleh13camerad",
                                     arcname="appleh13camerad")
                         archive.add(FACTORY_DIR, arcname=os.path.basename(FACTORY_DIR))
