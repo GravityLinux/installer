@@ -19,6 +19,7 @@ MIN_FREE = psize("1GB")
 MIN_INSTALL_FREE = psize("10GB")
 
 MIN_MACOS_VERSION = "26.5"
+MIN_MACOS_VERSION_EXPERT = "26.5"
 
 @dataclass
 class IPSW:
