@@ -46,3 +46,24 @@ class PartitionSelectionTests(unittest.TestCase):
                 with self.assertRaisesRegex(Exception, 'Could not uniquely identify'):
                     disk.addPartition('disk0s4', '%Linux%', '%noformat%', 1073741824)
                 disk.get_partition_info.assert_not_called()
+
+    def test_luks_alias_uses_guid_and_matches_reported_guid(self):
+        wanted = partition('disk0s6', 'CA7D7CCB-63ED-4C53-861C-1742536059CC', 'new-luks')
+        disk = self.setup_disk([partition('disk0s5', 'Apple_Boot', 'helper'), wanted])
+        self.assertIs(disk.addPartition('disk0s4', '%luks%', '%noformat%', 1073741824), wanted)
+        disk.action.assert_called_once_with('addPartition', 'disk0s4',
+                                            '%CA7D7CCB-63ED-4C53-861C-1742536059CC%',
+                                            '%noformat%', '1073741824', verbose=True)
+
+    def test_luks_alias_matches_linux_luks_content(self):
+        wanted = partition('disk0s5', 'Linux LUKS', 'new-luks')
+        disk = self.setup_disk([wanted])
+        self.assertIs(disk.addPartition('disk0s4', '%luks%', 'name', 1073741824), wanted)
+
+    def test_luks_missing_or_plain_linux_fails_closed(self):
+        for added in [[], [partition('disk0s5', 'Linux Filesystem', 'plain-root')]]:
+            with self.subTest(added=added):
+                disk = self.setup_disk(added)
+                with self.assertRaisesRegex(Exception, 'Could not uniquely identify'):
+                    disk.addPartition('disk0s4', '%luks%', '%noformat%', 1073741824)
+                disk.get_partition_info.assert_not_called()

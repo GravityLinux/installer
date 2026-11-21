@@ -248,19 +248,28 @@ class DiskUtil:
 
         disk = after.rsplit("s", 1)[0]
         before = {p.uuid for p in self.get_partitions(disk) if not p.free}
-        self.action("addPartition", after, fs, label, size, verbose=True)
+        requested_type = "Apple_APFS" if fs.lower() == "apfs" else fs.strip("%")
+        linux_luks_uuid = "CA7D7CCB-63ED-4C53-861C-1742536059CC"
+        add_type = f"%{linux_luks_uuid}%" if requested_type.lower() == "luks" else fs
+        self.action("addPartition", after, add_type, label, size, verbose=True)
 
         self.get_list()
         parts = self.get_partitions(disk)
 
         # macOS may insert Apple_Boot helpers between Linux partitions.
         # Identify the newly created partition by UUID and requested type.
-        requested_type = "Apple_APFS" if fs.lower() == "apfs" else fs.strip("%")
         # diskutil accepts %Linux% but reports Content as Linux Filesystem.
         # Normalize this alias without weakening the UUID/type uniqueness check.
+        # LUKS roots carry the Linux LUKS type GUID; diskutil may report it
+        # either as the GUID itself or as Linux LUKS.
+
         def canonical_type(value):
             value = value.lower()
-            return "linux filesystem" if value == "linux" else value
+            if value == "linux":
+                return "linux filesystem"
+            if value in ("luks", "linux luks", linux_luks_uuid.lower()):
+                return linux_luks_uuid.lower()
+            return value
 
         candidates = [p for p in parts if not p.free and p.uuid not in before
                       and canonical_type(p.type) == canonical_type(requested_type)]
